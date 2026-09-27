@@ -35,6 +35,8 @@ All four triggers activate immediately in Alfred:
 ### 1. `mlb` — Today's Scores
 Type `mlb` to view all games for today, sorted automatically: 🔴 **Live** → ⏰ **Upcoming** → ✅ **Final**.
 
+![MLB Scores Preview](images/mlb-preview.png)
+
 - **Press <kbd>↩</kbd> (Enter)** on any game → opens the box score on MLB.com.
 - **Hold <kbd>⌘</kbd> + <kbd>↩</kbd>** → opens the live box score directly.
 - **Dual team logos**: Away team logo on the left, home team on the right.
@@ -44,6 +46,8 @@ Type `mlb` to view all games for today, sorted automatically: 🔴 **Live** → 
 ### 2. `mlbs` — Standings
 Type `mlbs` to view full standings across all 6 divisions (AL East, Central, West; NL East, Central, West).
 
+![MLB Standings Preview](images/mlbs-preview.png)
+
 - Each team shows: `W-L (PCT)  GB: --  Streak: W3  RS/G: 4.8  RA/G: 3.2`
 - **Press <kbd>↩</kbd>** → opens team schedule on MLB.com.
 - **Hold <kbd>⌘</kbd>** → opens team schedule.
@@ -52,6 +56,8 @@ Type `mlbs` to view full standings across all 6 divisions (AL East, Central, Wes
 ### 3. `mlbp` — Player Stats
 Type `mlbp` followed by a player's name (e.g. `mlbp judge`, `mlbp skenes`):
 
+![MLB Player Stats Preview](images/mlbp-preview.png)
+
 - **Hitters**: AVG · HR · RBI · OPS · SB · G
 - **Pitchers**: ERA · WHIP · K · W-L · IP · GS
 - Displays official player headshot from MLB CDN (cached locally).
@@ -59,6 +65,8 @@ Type `mlbp` followed by a player's name (e.g. `mlbp judge`, `mlbp skenes`):
 
 ### 4. `mlbt` — Team Stats
 Type `mlbt` followed by a team name, city, abbreviation, or division (e.g. `mlbt yankees`, `mlbt lad`, `mlbt nl west`):
+
+![MLB Team Stats Preview](images/mlbt-preview.png)
 
 - **Default view**: Current record, win %, games back, streak, runs scored/allowed per game.
 - **Hold <kbd>⌘</kbd>**: Preview team batting statistics (AVG, HR, RBI, OPS, SB).
