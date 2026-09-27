@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>connections</key>
+	<dict>
+		<key>15CB8955-04C9-49C4-B238-A954E8D4CB4B</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>12F9DA31-50E6-42C8-BB82-614D86A84E5F</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<true/>
+			</dict>
+		</array>
+	</dict>
+	<key>createdby</key>
+	<string>Jarod Wong</string>
+	<key>description</key>
+	<string>MLB scores, standings, player stats, and team stats.</string>
+	<key>name</key>
+	<string>MLB Scores</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>mlb</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>⚾ Loading…</string>
+				<key>script</key>
+				<string>python3 mlb.py "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string>Scores · mlbs standings · mlbp player · mlbt team</string>
+				<key>title</key>
+				<string>MLB Scores</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>15CB8955-04C9-49C4-B238-A954E8D4CB4B</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>browser</key>
+				<string></string>
+				<key>spaces</key>
+				<string></string>
+				<key>url</key>
+				<string>{query}</string>
+				<key>utf8</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.openurl</string>
+			<key>uid</key>
+			<string>12F9DA31-50E6-42C8-BB82-614D86A84E5F</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>readme</key>
+	<string>## ⚾ MLB Scores — Alfred Workflow
+
+### Usage
+| Type this | What you get |
+|-----------|-------------|
+| `mlb`          | Today's live, upcoming &amp; final scores |
+| `mlbs`         | Standings grouped by division |
+| `mlbp {name}`  | Player stats (e.g. `mlbp trout`) |
+| `mlbt {query}` | Team stats (e.g. `mlbt dodgers`) |
+
+### mlbt modifier keys
+| Key | Shows |
+|-----|-------|
+| Default | Season record (W-L, GB, Streak, RS/G, RA/G) |
+| Hold ⌘ | Team batting (AVG, HR, RBI, OPS, SB) |
+| Hold ⌥ | Team pitching (ERA, WHIP, K, SV) |
+
+### Features
+- **Dual team logos** — away + home side-by-side for each game
+- **Live auto-refresh** — scores update every 5s during live games
+- **Player headshots** — live from MLB CDN, cached 7 days locally
+- **Timezone** — all game times in your Mac's local timezone automatically
+- **No API key** — uses MLB's free official Stats API (statsapi.mlb.com)
+
+Built with ❤️ for Alfred 5.
+</string>
+	<key>uidata</key>
+	<dict>
+		<key>12F9DA31-50E6-42C8-BB82-614D86A84E5F</key>
+		<dict>
+			<key>xpos</key>
+			<real>490.0</real>
+			<key>ypos</key>
+			<real>50.0</real>
+		</dict>
+		<key>15CB8955-04C9-49C4-B238-A954E8D4CB4B</key>
+		<dict>
+			<key>xpos</key>
+			<real>150.0</real>
+			<key>ypos</key>
+			<real>50.0</real>
+		</dict>
+	</dict>
+	<key>bundleid</key>
+	<string>com.popbot.mlb-scores</string>
+	<key>version</key>
+	<string>1.0.0</string>
+	<key>webaddress</key>
+	<string>https://github.com/PopBot/mlb-scores</string>
+</dict>
+</plist>

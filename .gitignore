@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Alfred & Workflow Cache
+.cache/
+*.alfredpreferences
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
