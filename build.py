@@ -46,7 +46,7 @@ def build():
 
     out_names = [
         "MLB_Workflow_V1.alfredworkflow",
-        "mlb-scores.alfredworkflow",
+        "alfred-mlb-scores.alfredworkflow",
     ]
 
     for out_name in out_names:

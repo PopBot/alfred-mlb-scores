@@ -11,7 +11,7 @@ Powered by MLB's **free official Stats API** — no API key or account required.
 
 ## 📦 Installation
 
-1. Download the latest `MLB_Workflow_V1.alfredworkflow` (or `mlb-scores.alfredworkflow`) from [GitHub Releases](https://github.com/PopBot/mlb-scores/releases).
+1. Download the latest `MLB_Workflow_V1.alfredworkflow` (or `alfred-mlb-scores.alfredworkflow`) from [GitHub Releases](https://github.com/PopBot/alfred-mlb-scores/releases).
 2. Double-click the downloaded file to install into Alfred 5.
 3. No configuration required — start searching immediately!
 
