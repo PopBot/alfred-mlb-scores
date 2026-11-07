@@ -96,9 +96,10 @@
 | Type this | What you get |
 |-----------|-------------|
 | `mlb`          | Today's live, upcoming &amp; final scores |
-| `mlbs`         | Standings grouped by division |
+| `mlb {filter}` | Filter today's games by team or status (e.g. `mlb sf`, `mlb live`) |
+| `mlbs [query]` | Standings grouped by division (e.g. `mlbs`, `mlbs al east`) |
 | `mlbp {name}`  | Player stats (e.g. `mlbp trout`) |
-| `mlbt {query}` | Team stats (e.g. `mlbt dodgers`) |
+| `mlbt [query]` | Team stats sorted by win % (e.g. `mlbt`, `mlbt dodgers`) |
 
 ### mlbt modifier keys
 | Key | Shows |

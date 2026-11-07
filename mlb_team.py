@@ -26,27 +26,41 @@ CACHE_TTL = 300   # 5 minutes
 def search_teams(query: str) -> list[dict]:
     q = query.lower().strip()
     if not q:
-        return TEAMS
+        return list(TEAMS)
+    words = q.split()
     return [
         t for t in TEAMS
-        if q in t["name"].lower()
-        or q in t["city"].lower()
-        or q in t["abbreviation"].lower()
-        or q in t["division"].lower()
-        or q in t.get("mlb_slug", "").lower()
+        if all(
+            w in (
+                f"{t['name']} {t['city']} {t['abbreviation']} "
+                f"{t['division']} {t.get('mlb_slug', '')}"
+            ).lower()
+            for w in words
+        )
     ]
 
 
 # ── Standings ──────────────────────────────────────────────────────────────────
 def fetch_standings(season: int) -> dict[int, dict]:
     key = f"standings_{season}"
-    data = cache_get(key, CACHE_TTL) or cache_get_stale(key)
+    data = cache_get(key, CACHE_TTL)
     if not data:
-        data = api_get("/standings", params={
-            "leagueId": "103,104", "season": season,
-            "standingsTypes": "regularSeason", "hydrate": "team",
-        })
-        cache_set(key, data)
+        stale = cache_get_stale(key)
+        try:
+            params = {
+                "leagueId": "103,104", "season": season,
+                "standingsTypes": "regularSeason", "hydrate": "team",
+            }
+            data = api_get("/standings", params=params)
+            if not data.get("records") and season > 2020:
+                params["season"] = season - 1
+                data = api_get("/standings", params=params)
+            cache_set(key, data)
+        except Exception:
+            if stale:
+                data = stale
+            else:
+                raise
     result: dict[int, dict] = {}
     for group in data.get("records", []):
         for tr in group.get("teamRecords", []):
@@ -54,22 +68,29 @@ def fetch_standings(season: int) -> dict[int, dict]:
     return result
 
 
-# ── Team stats ─────────────────────────────────────────────────────────────────
-def fetch_team_stats(team_id: int, group: str, season: int) -> dict:
-    key  = f"team_{group}_{team_id}_{season}"
-    data = cache_get(key, CACHE_TTL) or cache_get_stale(key)
+# ── Bulk Team stats ────────────────────────────────────────────────────────────
+def fetch_all_team_stats(group: str, season: int) -> dict[int, dict]:
+    """Fetch season hitting or pitching stats for all 30 MLB teams in a single API request."""
+    key  = f"all_teams_{group}_{season}"
+    data = cache_get(key, CACHE_TTL)
     if data:
-        return data
+        return {int(k): v for k, v in data.items()}
+    stale = cache_get_stale(key)
     try:
-        raw    = api_get(f"/teams/{team_id}/stats", params={
-            "stats": "season", "season": season, "group": group,
-        })
+        params = {"sportId": 1, "stats": "season", "season": season, "group": group}
+        raw = api_get("/teams/stats", params=params)
         splits = raw.get("stats", [{}])[0].get("splits", [])
-        data   = splits[0].get("stat", {}) if splits else {}
+        if not splits and season > 2020:
+            params["season"] = season - 1
+            raw = api_get("/teams/stats", params=params)
+            splits = raw.get("stats", [{}])[0].get("splits", [])
+        res = {str(s["team"]["id"]): s.get("stat", {}) for s in splits if "team" in s}
+        cache_set(key, res)
+        return {int(k): v for k, v in res.items()}
     except Exception:
-        data = {}
-    cache_set(key, data)
-    return data
+        if stale:
+            return {int(k): v for k, v in stale.items()}
+        return {}
 
 
 # ── Format ─────────────────────────────────────────────────────────────────────
@@ -171,31 +192,28 @@ def main():
         return
 
     try:
-        standings = fetch_standings(season)
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            f_std = pool.submit(fetch_standings, season)
+            f_bat = pool.submit(fetch_all_team_stats, "hitting", season)
+            f_pit = pool.submit(fetch_all_team_stats, "pitching", season)
+            standings = f_std.result()
+            bat_map   = f_bat.result()
+            pit_map   = f_pit.result()
     except Exception as e:
         alfred_error("Could not fetch standings", str(e))
         return
 
-    def fetch_team(team: dict):
-        tid = team["id"]
-        bat = fetch_team_stats(tid, "hitting",  season)
-        pit = fetch_team_stats(tid, "pitching", season)
-        return team, bat, pit
-
-    results = []
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        futures = {pool.submit(fetch_team, t): t for t in teams}
-        for future in as_completed(futures):
-            results.append(future.result())
-
     # Sort by win percentage descending
-    def sort_key(r):
-        tid = r[0]["id"]
+    def sort_key(t: dict):
+        tid = t["id"]
         try:    return -float(standings.get(tid, {}).get("winningPercentage", "0"))
         except: return 0
 
-    results.sort(key=sort_key)
-    items = [build_item(t, standings, bat, pit, season) for t, bat, pit in results]
+    teams.sort(key=sort_key)
+    items = [
+        build_item(t, standings, bat_map.get(t["id"], {}), pit_map.get(t["id"], {}), season)
+        for t in teams
+    ]
     alfred_output(items)
 
 

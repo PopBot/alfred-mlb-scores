@@ -21,7 +21,10 @@ import requests
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 WORKFLOW_DIR = os.path.dirname(os.path.abspath(__file__))
-CACHE_DIR    = os.environ.get("alfred_workflow_cache", os.path.join(WORKFLOW_DIR, ".cache"))
+DEFAULT_ALFRED_CACHE = os.path.expanduser(
+    "~/Library/Caches/com.runningwithcrayons.Alfred/Workflow Data/com.popbot.alfred-mlb-scores"
+)
+CACHE_DIR    = os.environ.get("alfred_workflow_cache") or DEFAULT_ALFRED_CACHE
 HEADSHOT_DIR = os.path.join(CACHE_DIR, "headshots")
 LOGO_DIR     = os.path.join(WORKFLOW_DIR, "mlb_logos")
 TEAMS_FILE   = os.path.join(WORKFLOW_DIR, "data", "teams.json")
@@ -88,20 +91,24 @@ def cache_set(key: str, data) -> None:
         json.dump(data, f)
 
 
-# ── HTTP ───────────────────────────────────────────────────────────────────────
+# ── HTTP Session ───────────────────────────────────────────────────────────────
 BASE_URL = "https://statsapi.mlb.com/api/v1"
 HEADERS  = {"User-Agent": "Alfred-MLB-Workflow/1.0"}
 
+_session = requests.Session()
+_session.headers.update(HEADERS)
+
 
 def api_get(endpoint: str, params: dict | None = None) -> dict:
-    r = requests.get(f"{BASE_URL}{endpoint}", params=params,
-                     headers=HEADERS, timeout=5)
+    r = _session.get(f"{BASE_URL}{endpoint}", params=params, timeout=5)
     r.raise_for_status()
     return r.json()
 
 
 def current_season() -> int:
-    return datetime.now().year
+    now = datetime.now()
+    # Before March (regular season starts late March), default to previous season
+    return now.year if now.month >= 3 else now.year - 1
 
 
 # ── Timezone ───────────────────────────────────────────────────────────────────
@@ -129,7 +136,7 @@ def player_headshot_path(player_id: int) -> str:
         return path
     url = MLB_HEADSHOT.format(player_id=player_id)
     try:
-        r = requests.get(url, headers=HEADERS, timeout=4)
+        r = _session.get(url, timeout=4)
         if r.status_code == 200 and "image" in r.headers.get("Content-Type", ""):
             with open(path, "wb") as f:
                 f.write(r.content)
