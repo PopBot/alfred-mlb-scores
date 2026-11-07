@@ -20,22 +20,30 @@ import traceback
 
 
 def main():
-    query = sys.argv[1].strip() if len(sys.argv) > 1 else ""
+    raw_arg = sys.argv[1] if len(sys.argv) > 1 else ""
+    query = raw_arg.strip()
+    q_low = query.lower()
 
     # ── Route based on query prefix ──────────────────────────────────────────
-    if query.startswith("s"):
-        # mlbs → standings
+    # If raw_arg starts with a leading space (e.g. "mlb sf" -> " sf"), treat it
+    # as a scoreboard filter rather than a subcommand prefix ("mlbs").
+    has_leading_space = raw_arg.startswith(" ")
+
+    if not has_leading_space and (q_low == "s" or q_low.startswith("s ")):
+        # mlbs [div/league] → standings
+        standings_query = query[1:].strip()
+        sys.argv = [sys.argv[0], standings_query]
         from mlb_standings import main as standings_main
         standings_main()
 
-    elif query.startswith("p"):
+    elif not has_leading_space and (q_low == "p" or q_low.startswith("p ")):
         # mlbp {name} → player search
         player_query = query[1:].strip()
         sys.argv = [sys.argv[0], player_query]
         from mlb_player import main as player_main
         player_main()
 
-    elif query.startswith("t"):
+    elif not has_leading_space and (q_low == "t" or q_low.startswith("t ")):
         # mlbt {query} → team search
         team_query = query[1:].strip()
         sys.argv = [sys.argv[0], team_query]
@@ -43,8 +51,8 @@ def main():
         team_main()
 
     else:
-        # Default: show today's scores
-        scores_main()
+        # Default: show today's scores (with optional filter)
+        scores_main(query)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -57,7 +65,7 @@ from utils import (
     api_get, cache_get, cache_get_stale, cache_set,
     team_logo_path, team_abbr_from_id,
     utc_to_local, current_season,
-    CACHE_DIR, WORKFLOW_DIR,
+    TEAM_BY_ID, CACHE_DIR, WORKFLOW_DIR,
 )
 from image_utils import make_matchup_icon
 
@@ -147,7 +155,40 @@ def build_item(game: dict) -> dict:
     }
 
 
-def scores_main():
+def game_matches_filter(game: dict, query: str) -> bool:
+    if not query:
+        return True
+    q = query.lower().strip()
+    state = game.get("status", {}).get("abstractGameState", "").lower()
+    if q == "live":
+        return state == "live"
+    if q in ("final", "post"):
+        return state == "final"
+    if q in ("upcoming", "preview", "pre"):
+        return state == "preview"
+
+    away_team = game.get("teams", {}).get("away", {}).get("team", {})
+    home_team = game.get("teams", {}).get("home", {}).get("team", {})
+    away_meta = TEAM_BY_ID.get(away_team.get("id"), {})
+    home_meta = TEAM_BY_ID.get(home_team.get("id"), {})
+
+    haystack = " ".join([
+        away_team.get("name", ""),
+        away_team.get("abbreviation", ""),
+        away_meta.get("city", ""),
+        away_meta.get("abbreviation", ""),
+        away_meta.get("mlb_slug", ""),
+        home_team.get("name", ""),
+        home_team.get("abbreviation", ""),
+        home_meta.get("city", ""),
+        home_meta.get("abbreviation", ""),
+        home_meta.get("mlb_slug", ""),
+    ]).lower()
+
+    return all(w in haystack for w in q.split())
+
+
+def scores_main(filter_query: str = ""):
     today     = datetime.now().strftime("%Y-%m-%d")
     cache_key = f"scores_{today}"
 
@@ -179,7 +220,19 @@ def scores_main():
         }])
         return
 
-    games = sorted(dates[0]["games"], key=sort_key)
+    games = dates[0]["games"]
+    if filter_query:
+        games = [g for g in games if game_matches_filter(g, filter_query)]
+        if not games:
+            alfred_output([{
+                "title":    f"⚾ No MLB games matching '{filter_query}' today",
+                "subtitle": "Try searching by team name, abbreviation, or 'live' / 'final'",
+                "valid":    False,
+                "icon":     {"path": os.path.join(WORKFLOW_DIR, "icon.png")},
+            }])
+            return
+
+    games = sorted(games, key=sort_key)
     items = [build_item(g) for g in games]
 
     has_live = any(

@@ -12,7 +12,7 @@ import sys
 from utils import (
     alfred_error, alfred_output,
     api_get, cache_get, cache_get_stale, cache_set,
-    team_logo_path, current_season, WORKFLOW_DIR,
+    team_logo_path, current_season, TEAM_BY_ID, WORKFLOW_DIR,
 )
 
 CACHE_TTL = 300   # 5 minutes
@@ -55,7 +55,8 @@ def team_item(rank: int, record: dict) -> dict:
     rs_g    = record.get("runsScored",  0) / gp
     ra_g    = record.get("runsAllowed", 0) / gp
     pct     = record.get("winningPercentage", ".000")
-    slug    = team.get("teamCode", name.lower().replace(" ", "-"))
+    t_meta  = TEAM_BY_ID.get(tid, {})
+    slug    = t_meta.get("mlb_slug") or name.lower().replace(" ", "-")
 
     return {
         "title":    f"{rank}. {name}",
@@ -78,7 +79,7 @@ def team_item(rank: int, record: dict) -> dict:
     }
 
 
-def build_items(data: dict) -> list:
+def build_items(data: dict, query: str = "") -> list:
     div_map: dict[str, list] = {d: [] for d in DIVISION_ORDER}
     for group in data.get("records", []):
         div_id   = group.get("division", {}).get("id")
@@ -86,17 +87,35 @@ def build_items(data: dict) -> list:
         if div_name:
             div_map[div_name].extend(group.get("teamRecords", []))
 
+    q_words = query.lower().split() if query else []
     items = []
     for div in DIVISION_ORDER:
         teams = div_map.get(div, [])
-        if teams:
-            items.append(header(div))
+        if not teams:
+            continue
+        if q_words and not all(w in div.lower() for w in q_words):
+            matching_teams = []
             for rank, rec in enumerate(teams, 1):
+                t = rec.get("team", {})
+                t_meta = TEAM_BY_ID.get(t.get("id"), {})
+                haystack = f"{div} {t.get('name', '')} {t_meta.get('abbreviation', '')} {t_meta.get('city', '')}".lower()
+                if all(w in haystack for w in q_words):
+                    matching_teams.append((rank, rec))
+            if not matching_teams:
+                continue
+            items.append(header(div))
+            for rank, rec in matching_teams:
                 items.append(team_item(rank, rec))
+            continue
+
+        items.append(header(div))
+        for rank, rec in enumerate(teams, 1):
+            items.append(team_item(rank, rec))
     return items
 
 
 def main():
+    query     = sys.argv[1].strip() if len(sys.argv) > 1 else ""
     season    = current_season()
     cache_key = f"standings_{season}"
     params    = {
@@ -110,25 +129,32 @@ def main():
     data = cache_get(cache_key, CACHE_TTL)
 
     if data is None:
-        # Stale cache → return immediately, rerun fetches fresh
         stale = cache_get_stale(cache_key)
-        if stale:
-            items = build_items(stale)
-            if items:
-                alfred_output(items)
-                return
-
-        # No cache → fetch now
         try:
             data = api_get("/standings", params=params)
+            # If early in calendar year and regularSeason has no records yet, fallback to previous season
+            if not data.get("records") and season > 2020:
+                params["season"] = season - 1
+                data = api_get("/standings", params=params)
             cache_set(cache_key, data)
         except Exception as e:
-            alfred_error("Could not fetch MLB standings", str(e))
-            return
+            if stale:
+                data = stale
+            else:
+                alfred_error("Could not fetch MLB standings", str(e))
+                return
 
-    items = build_items(data)
+    items = build_items(data, query)
     if not items:
-        alfred_error("No standings data available", f"Season {season}")
+        if query:
+            alfred_output([{
+                "title": f"⚾ No MLB standings matching '{query}'",
+                "subtitle": "Try e.g. 'mlbs al east', 'mlbs nl west', or 'mlbs dodgers'",
+                "valid": False,
+                "icon": {"path": os.path.join(WORKFLOW_DIR, "icon.png")},
+            }])
+        else:
+            alfred_error("No standings data available", f"Season {season}")
         return
 
     alfred_output(items)

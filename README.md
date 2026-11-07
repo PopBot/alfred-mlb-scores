@@ -23,10 +23,10 @@ All four triggers activate immediately in Alfred:
 
 | Keyword | What it shows | Example |
 | :--- | :--- | :--- |
-| `mlb` | Today's live, upcoming & final scores | `mlb` |
-| `mlbs` | Current standings grouped by division | `mlbs` |
+| `mlb` | Today's live, upcoming & final scores (with optional filter) | `mlb`, `mlb dodgers`, `mlb live` |
+| `mlbs` | Current standings grouped by division (with optional filter) | `mlbs`, `mlbs al east` |
 | `mlbp` | Player stats & season performance | `mlbp ohtani` |
-| `mlbt` | Team stats, record & split stats | `mlbt dodgers` |
+| `mlbt` | Team stats, record & split stats | `mlbt`, `mlbt dodgers`, `mlbt nl west` |
 
 ---
 

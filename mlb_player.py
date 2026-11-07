@@ -47,14 +47,19 @@ def fetch_roster(season: int) -> list[dict]:
     data = cache_get(key, ROSTER_TTL)
     if data:
         return data
-    # Try stale first
     stale = cache_get_stale(key)
-    if stale:
-        return stale
-    raw = api_get("/sports/1/players", params={"season": season})
-    people = [p for p in raw.get("people", []) if p.get("active", True)]
-    cache_set(key, people)
-    return people
+    try:
+        raw = api_get("/sports/1/players", params={"season": season})
+        people = [p for p in raw.get("people", []) if p.get("active", True)]
+        if not people and season > 2020:
+            raw = api_get("/sports/1/players", params={"season": season - 1})
+            people = [p for p in raw.get("people", []) if p.get("active", True)]
+        cache_set(key, people)
+        return people
+    except Exception:
+        if stale:
+            return stale
+        raise
 
 
 def search_players(roster: list[dict], query: str) -> list[dict]:
@@ -73,16 +78,17 @@ def fetch_stats(player_id: int, group: str, season: int) -> dict:
     data = cache_get(key, STATS_TTL)
     if data is not None:
         return data
+    stale = cache_get_stale(key)
     try:
         raw    = api_get(f"/people/{player_id}/stats", params={
             "stats": "season", "season": season, "group": group,
         })
         splits = raw.get("stats", [{}])[0].get("splits", [])
         stat   = splits[0].get("stat", {}) if splits else {}
+        cache_set(key, stat)
+        return stat
     except Exception:
-        stat = {}
-    cache_set(key, stat)
-    return stat
+        return stale if stale is not None else {}
 
 
 # ── Item builders ──────────────────────────────────────────────────────────────
@@ -96,13 +102,20 @@ def player_team_name(player: dict) -> str:
     return "—"
 
 
-def build_hitter_item(player: dict, stat: dict, season: int) -> dict:
+def player_profile_url(player: dict) -> str:
     pid  = player["id"]
+    slug = player.get("nameSlug", "")
+    if slug:
+        # MLB Stats API `nameSlug` already ends with `-{pid}` (e.g. `shohei-ohtani-660271`)
+        return f"https://www.mlb.com/player/{slug}"
+    return f"https://www.mlb.com/player/{pid}"
+
+
+def build_hitter_item(player: dict, stat: dict, season: int, icon_path: str) -> dict:
     name = player.get("fullName", "Unknown")
     team = player_team_name(player)
     pos  = player.get("primaryPosition", {}).get("abbreviation", "—")
-    slug = player.get("nameSlug", "")
-    url  = f"https://www.mlb.com/player/{slug}/{pid}"
+    url  = player_profile_url(player)
 
     avg = fmt_avg(stat.get("avg", 0))
     hr  = stat.get("homeRuns",    "—")
@@ -115,18 +128,16 @@ def build_hitter_item(player: dict, stat: dict, season: int) -> dict:
         "title":    f"{name}  ·  {team}  ({pos})",
         "subtitle": f"{season}  ·  {avg} AVG  {hr} HR  {rbi} RBI  {ops} OPS  {sb} SB  {gp} G",
         "arg":      url,
-        "icon":     {"path": player_headshot_path(pid)},
+        "icon":     {"path": icon_path},
         "mods":     {"cmd": {"subtitle": "⌘  Open player profile on MLB.com", "arg": url}},
     }
 
 
-def build_pitcher_item(player: dict, stat: dict, season: int) -> dict:
-    pid  = player["id"]
+def build_pitcher_item(player: dict, stat: dict, season: int, icon_path: str) -> dict:
     name = player.get("fullName", "Unknown")
     team = player_team_name(player)
     pos  = player.get("primaryPosition", {}).get("abbreviation", "—")
-    slug = player.get("nameSlug", "")
-    url  = f"https://www.mlb.com/player/{slug}/{pid}"
+    url  = player_profile_url(player)
 
     era  = fmt_float(stat.get("era",           "—"))
     whip = fmt_float(stat.get("whip",          "—"))
@@ -140,7 +151,7 @@ def build_pitcher_item(player: dict, stat: dict, season: int) -> dict:
         "title":    f"{name}  ·  {team}  ({pos})",
         "subtitle": f"{season}  ·  {era} ERA  {whip} WHIP  {k} K  {w}-{l} W-L  {ip} IP  {gs} GS",
         "arg":      url,
-        "icon":     {"path": player_headshot_path(pid)},
+        "icon":     {"path": icon_path},
         "mods":     {"cmd": {"subtitle": "⌘  Open player profile on MLB.com", "arg": url}},
     }
 
@@ -175,13 +186,14 @@ def main():
         }])
         return
 
-    # Fetch stats in parallel
+    # Fetch stats and headshots in parallel
     def fetch_for(player: dict):
-        pid   = player["id"]
-        pos   = player.get("primaryPosition", {}).get("abbreviation", "")
-        group = "pitching" if pos in PITCHER_POS else "hitting"
-        stat  = fetch_stats(pid, group, season)
-        return player, group, stat
+        pid       = player["id"]
+        pos       = player.get("primaryPosition", {}).get("abbreviation", "")
+        group     = "pitching" if pos in PITCHER_POS else "hitting"
+        stat      = fetch_stats(pid, group, season)
+        icon_path = player_headshot_path(pid)
+        return player, group, stat, icon_path
 
     order = {p["id"]: i for i, p in enumerate(matches)}
     results = []
@@ -193,11 +205,11 @@ def main():
     results.sort(key=lambda r: order.get(r[0]["id"], 999))
 
     items = []
-    for player, group, stat in results:
+    for player, group, stat, icon_path in results:
         if group == "pitching":
-            items.append(build_pitcher_item(player, stat, season))
+            items.append(build_pitcher_item(player, stat, season, icon_path))
         else:
-            items.append(build_hitter_item(player, stat, season))
+            items.append(build_hitter_item(player, stat, season, icon_path))
 
     alfred_output(items)
 
